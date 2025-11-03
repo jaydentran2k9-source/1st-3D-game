@@ -1,5 +1,7 @@
+﻿
 using UnityEngine;
 using TMPro;
+using UnityEngine.InputSystem;
 
 /// Thanks for downloading my projectile gun script! :D
 /// Feel free to use it in any project you like!
@@ -9,11 +11,10 @@ using TMPro;
 /// or use the #coding-problems channel of my discord server
 /// 
 /// Dave
-public class Projectile : MonoBehaviour
+public class ProjectileGunTutorial : MonoBehaviour
 {
     //bullet 
     public GameObject bullet;
-    
 
     //bullet force
     public float shootForce, upwardForce;
@@ -38,10 +39,14 @@ public class Projectile : MonoBehaviour
 
     //Graphics
     public GameObject muzzleFlash;
-    public TextMeshProUGUI ammunitionDisplay;
+    [SerializeField] TextMeshProUGUI ammunitionDisplay;
 
     //bug fixing :D
     public bool allowInvoke = true;
+
+    // ui stuffghjhb
+    [SerializeField] Player_Movement playerMovement;
+    
 
     private void Awake()
     {
@@ -55,8 +60,10 @@ public class Projectile : MonoBehaviour
         MyInput();
 
         //Set ammo display, if it exists :D
-        if (ammunitionDisplay != null)
-            ammunitionDisplay.SetText(bulletsLeft / bulletsPerTap + " / " + magazineSize / bulletsPerTap);
+        if (ammunitionDisplay != null) {
+            ammunitionDisplay.SetText((bulletsLeft).ToString() + " / " + (magazineSize).ToString()); //converts the ammo to a string to display changing nmbers
+            
+        }
     }
     private void MyInput()
     {
@@ -95,7 +102,7 @@ public class Projectile : MonoBehaviour
             targetPoint = ray.GetPoint(75); //Just a point far away from the player
 
         //Calculate direction from attackPoint to targetPoint
-        Vector3 directionWithoutSpread = transform.forward;
+        Vector3 directionWithoutSpread = targetPoint - attackPoint.position;
 
         //Calculate spread
         float x = Random.Range(-spread, spread);
@@ -104,26 +111,14 @@ public class Projectile : MonoBehaviour
         //Calculate new direction with spread
         Vector3 directionWithSpread = directionWithoutSpread + new Vector3(x, y, 0); //Just add spread to last direction
 
-        directionWithSpread.Normalize();
-
         //Instantiate bullet/projectile
-        GameObject currentBullet = Instantiate(bullet, attackPoint.position, Quaternion.LookRotation(directionWithSpread)); //store instantiated bullet in currentBullet
-        Destroy(currentBullet, 5f); //Destroy bullet after 5 seconds
+        GameObject currentBullet = Instantiate(bullet, attackPoint.position, Quaternion.identity); //store instantiated bullet in currentBullet
         //Rotate bullet to shoot direction
+        currentBullet.transform.forward = directionWithSpread.normalized;
 
-        Rigidbody rb = currentBullet.GetComponent<Rigidbody>();
-
-        if (rb != null)
-        {
-            rb.linearVelocity = directionWithSpread * shootForce;
-            rb.AddForce(transform.up * upwardForce);
-        }
-
-        //currentBullet.transform.forward = directionWithSpread.normalized;
-
-        ////Add forces to bullet
-        //currentBullet.GetComponent<Rigidbody>().AddForce(directionWithSpread.normalized * shootForce, ForceMode.Impulse);
-        //currentBullet.GetComponent<Rigidbody>().AddForce(fpsCam.transform.up * upwardForce, ForceMode.Impulse);
+        //Add forces to bullet
+        currentBullet.GetComponent<Rigidbody>().AddForce(directionWithSpread.normalized * shootForce, ForceMode.Impulse);
+        currentBullet.GetComponent<Rigidbody>().AddForce(fpsCam.transform.up * upwardForce, ForceMode.Impulse);
 
         //Instantiate muzzle flash, if you have one
         if (muzzleFlash != null)

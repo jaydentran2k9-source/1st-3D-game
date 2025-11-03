@@ -1,10 +1,13 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
+using System;
 
 [RequireComponent(typeof(CharacterController))]
-public class Playermovement : MonoBehaviour
+public class Player_Movement : MonoBehaviour
 {
+    [Header("Player Settings")]
     public Camera playerCamera;
     public float walkSpeed = 6f;
     public float runSpeed = 12f;
@@ -16,11 +19,19 @@ public class Playermovement : MonoBehaviour
     public float crouchHeight = 1f;
     public float crouchSpeed = 3f;
 
+    [Header("UI Scripts")]
+    [SerializeField] HealthManager healthManager;
+    [SerializeField] StaminaManager staminaManager;
+    
+
+
+
     private Vector3 moveDirection = Vector3.zero;
     private float rotationX = 0f;
     private CharacterController characterController;
 
-    private bool canMove = true;
+    public bool canMove = true;
+    public bool isRunning = false;
 
 
     void Start()
@@ -36,11 +47,22 @@ public class Playermovement : MonoBehaviour
         Vector3 forward = transform.TransformDirection(Vector3.forward);
         Vector3 right = transform.TransformDirection(Vector3.right);
 
-        bool isRunning = Input.GetKey(KeyCode.LeftShift);
+        isRunning = Input.GetKey(KeyCode.LeftShift);
+        if (StaminaManager.instance.staminaAmount <= 0f)
+        {
+            isRunning = false;
+        }
+
         float curSpeedX = canMove ? (isRunning ? runSpeed : walkSpeed) * Input.GetAxis("Vertical") : 0;
         float curSpeedY = canMove ? (isRunning ? runSpeed : walkSpeed) * Input.GetAxis("Horizontal") : 0;
         float movementDirectionY = moveDirection.y;
         moveDirection = (forward * curSpeedX) + (right * curSpeedY);
+
+        if(isRunning && StaminaManager.instance.staminaAmount > 0)
+        {
+            StaminaManager.instance.UseStamina(10f * Time.deltaTime);
+        }
+
 
         if (Input.GetButton("Jump") && canMove && characterController.isGrounded)
         {
@@ -56,7 +78,7 @@ public class Playermovement : MonoBehaviour
             moveDirection.y -= gravity * Time.deltaTime;
         }
 
-        if (Input.GetKey(KeyCode.R) && canMove)
+        if (Input.GetKey(KeyCode.C) && canMove)
         {
             characterController.height = crouchHeight;
             walkSpeed = crouchSpeed;
@@ -77,6 +99,11 @@ public class Playermovement : MonoBehaviour
             rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit);
             playerCamera.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
             transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
+            
         }
+
+        healthManager.heal(0);
     }
+
+    
 }
