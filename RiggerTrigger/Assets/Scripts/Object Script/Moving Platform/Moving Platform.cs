@@ -10,6 +10,13 @@ public class MovingPlatform : MonoBehaviour
     [SerializeField]
     private float _speed;
 
+    // Overlap box settings to detect the player standing on the platform
+    [SerializeField]
+    private Vector3 _overlapExtents = new Vector3(3f, 2f, 4f);
+
+    [SerializeField]
+    private LayerMask _overlapMask = ~0; // default to everything; set to Player layer if available
+
     private int _targetWaypointIndex;
 
     private Transform _previousWaypoint;
@@ -17,13 +24,15 @@ public class MovingPlatform : MonoBehaviour
 
     private float _timetoWaypoint;
     private float _elapsedTime;
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+
+    // Track current rider so we can unparent when they leave the overlap area
+    private Transform _currentRider;
+
     void Start()
     {
         TargetNextWaypoint();
     }
 
-    // Update is called once per frame
     void FixedUpdate()
     {
         _elapsedTime += Time.deltaTime;
@@ -33,12 +42,49 @@ public class MovingPlatform : MonoBehaviour
         transform.position = Vector3.Lerp(_previousWaypoint.position, _targetWaypoint.position, elapsedPercentage);
         transform.rotation = Quaternion.Lerp(_previousWaypoint.rotation, _targetWaypoint.rotation, elapsedPercentage);
 
-
-
+        // Detect player using an overlap box so characters that don't use physics collisions still get parented
+        DetectAndHandleRider();
 
         if (elapsedPercentage >= 1.0f)
         {
             TargetNextWaypoint();
+        }
+    }
+
+    private void DetectAndHandleRider()
+    {
+        // OverlapBox uses half-extents; orientation is the platform rotation
+        Collider[] hits = Physics.OverlapBox(transform.position, _overlapExtents, transform.rotation, _overlapMask, QueryTriggerInteraction.Ignore);
+
+        Transform foundPlayer = null;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            if (hits[i].transform.CompareTag("Player"))
+            {
+                foundPlayer = hits[i].transform;
+                break;
+            }
+        }
+
+        if (foundPlayer != null)
+        {
+            if (_currentRider != foundPlayer)
+            {
+                // Parent the player to the platform so they move with it
+                foundPlayer.SetParent(transform);
+                _currentRider = foundPlayer;
+            }
+        }
+        else
+        {
+            // No player found in overlap box: unparent any previously parented rider
+            if (_currentRider != null)
+            {
+                // Only unparent if the parent is still this transform (safety)
+                if (_currentRider.parent == transform)
+                    _currentRider.SetParent(null);
+                _currentRider = null;
+            }
         }
     }
 
@@ -52,6 +98,8 @@ public class MovingPlatform : MonoBehaviour
 
         float distanceToWaypoint = Vector3.Distance(_previousWaypoint.position, _targetWaypoint.position);
         _timetoWaypoint = distanceToWaypoint / _speed;
+
+            // Removed incorrect BoxCast; overlap checking handled every FixedUpdate in DetectAndHandleRider
     }
 
     private void OnCollisionEnter(Collision other)
@@ -70,4 +118,14 @@ public class MovingPlatform : MonoBehaviour
         }
     }
 
-}   
+    // Draw the overlap box in the editor for debugging
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = new Color(0f, 1f, 0f, 0.25f);
+        Matrix4x4 prev = Gizmos.matrix;
+        Gizmos.matrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
+        Gizmos.DrawCube(Vector3.zero, _overlapExtents * 2f);
+        Gizmos.matrix = prev;
+    }
+
+}
